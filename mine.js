@@ -10,38 +10,36 @@ const extractLinks = ($, links) => {
 }
 
 const getters = {
-  poster: ($, div) => 'https://www.cinetrafic.fr' + div.find('#liste_film_tl').find('img')[0].attribs.src
+  poster: ($, div) => () => 'https://www.cinetrafic.fr' + div.find('#liste_film_tl').find('img')[0].attribs.src
     .replace('medium', 'big')
     .replace(/\?.*/, ''),
 
-  title: ($, div) => div.find('.liste_item_titre').find('strong').text()
+  title: ($, div) => () => div.find('.liste_item_titre').find('strong').text()
     .replace(/\s*\(Série\)/, ''),
 
-  directors: ($, div) => extractLinks($, div.find('#val_real').find('a')),
+  directors: ($, div) => () => extractLinks($, div.find('#val_real').find('a')),
 
-  year: ($, div) => Number(div.find('.info_film').find('#val_year').text().trim()),
+  year: ($, div) => () => Number(div.find('.info_film').find('#val_year').text().trim()),
 
-  countries: ($, div) => div.find('.info_film').find('#val_country').text().trim().split(',')
+  countries: ($, div) => () => div.find('.info_film').find('#val_country').text().trim().split(',')
     .filter(item => item !== '...'),
 
-  actors: ($, div) => extractLinks($, div.find('.info_film_acteur').find('#val_cast').find('a')),
+  actors: ($, div) => () => extractLinks($, div.find('.info_film_acteur').find('#val_cast').find('a')),
 
-  fans: ($, div) => Number(div.find('.info_film_stats').find('a:first-child').text().trim().match(/.*: (\d+)/)[1])
+  fans: ($, div) => () => Number(div.find('.info_film_stats').find('a:first-child').text().trim().match(/.*: (\d+)/)[1])
 
 }
 
 const minePage = page => {
   const $ = cheerio.load(page)
   const items = $('#liste_film > div')
-  const ids = items.toArray()
+  return items.toArray()
     .filter(({ attribs }) => attribs.id && attribs.id.startsWith('liste_film_'))
     .map(item => item.attribs.id)
-
-  return ids.map(id => {
-    const div = $(`#${id}`)
-    return Object.keys(getters)
-      .reduce((obj, k) => ({ ...obj, [k]: getters[k]($, div) }), {})
-  })
+    .map(id => Object.keys(getters)
+      .map(k => ({ k, getter: getters[k]($, $(`#${id}`)) }))
+      .reduce((obj, { k, getter }) => ({ ...obj, [k]: getter() }), {})
+    )
 }
 
 const data = pages.reduce(
